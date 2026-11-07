@@ -1,0 +1,11 @@
+#!/bin/sh
+# Общий хук для всех репозиториев: gitleaks проверяет то, что добавлено в коммит.
+# Подключение — README.md («Компьютер (macOS)», «Облачная сессия»).
+set -eu
+
+if ! command -v gitleaks >/dev/null; then
+  echo "pre-commit: нет gitleaks (macOS: brew install gitleaks) — коммит остановлен" >&2
+  exit 1
+fi
+
+exec gitleaks git --pre-commit --staged --redact --no-banner
