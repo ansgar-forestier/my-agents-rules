@@ -27,3 +27,22 @@ if command -v gitleaks >/dev/null; then
 else
   echo "gitleaks: нет — коммитить нельзя, пока его не поставят."
 fi
+
+# Хуки текущего репозитория: если у проекта свои хуки (husky, pre-commit, своя папка),
+# общий хук там не работает — проверяем, что gitleaks вызывается из хуков проекта.
+# Проверка по слову «gitleaks»: ловит «подключили свои хуки и забыли», а не доказывает вызов.
+shared=$(cd "$(dirname "$0")/../hooks" 2>/dev/null && pwd -P)
+top=$(git -C "${CLAUDE_PROJECT_DIR:-$PWD}" rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$top" ]; then
+  hooks=$(git -C "$top" rev-parse --git-path hooks 2>/dev/null)
+  case "$hooks" in /*) ;; *) hooks="$top/$hooks" ;; esac
+  hooks=$(cd "$hooks" 2>/dev/null && pwd -P)
+  if [ -n "$hooks" ] && [ "$hooks" = "$shared" ]; then
+    echo "Git-хуки репозитория: общий хук gitleaks."
+  elif grep -rqs gitleaks ${hooks:+"$hooks"} "$top/.husky" "$top/.pre-commit-config.yaml" \
+         "$top/lefthook.yml" "$top/.lefthook.yml"; then
+    echo "Git-хуки репозитория: свои хуки проекта, gitleaks в них есть."
+  else
+    echo "ВНИМАНИЕ: в этом репозитории свои git-хуки без gitleaks (или хуков нет) — коммиты не проверяются на секреты. Добавь вызов gitleaks в хук проекта (rules/base.md, «Безопасность») или скажи пользователю."
+  fi
+fi
